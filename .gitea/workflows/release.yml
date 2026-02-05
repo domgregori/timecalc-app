@@ -80,16 +80,30 @@ jobs:
           APK="TimeCalc_${TAG}.apk"
 
           # Create release (ignore error if it already exists)
-          curl -sS -X POST \
+          CREATE_RESPONSE=$(curl -sS -X POST \
             -H "Authorization: token ${GITEA_TOKEN}" \
             -H "Content-Type: application/json" \
             "${GITEA_URL}/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/releases" \
             -d "{\"tag_name\":\"${TAG}\",\"name\":\"${TAG}\",\"draft\":false,\"prerelease\":false}" \
-            || true
+            || true)
+
+          # Get release id (from create response or existing tag)
+          RELEASE_ID=$(echo "$CREATE_RESPONSE" | sed -n 's/.*"id":[ ]*\\([0-9]*\\).*/\\1/p')
+          if [ -z "$RELEASE_ID" ]; then
+            RELEASE_ID=$(curl -sS \
+              -H "Authorization: token ${GITEA_TOKEN}" \
+              "${GITEA_URL}/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/releases/tags/${TAG}" \
+              | sed -n 's/.*"id":[ ]*\\([0-9]*\\).*/\\1/p')
+          fi
+
+          if [ -z "$RELEASE_ID" ]; then
+            echo "Failed to determine release id for tag ${TAG}"
+            exit 1
+          fi
 
           # Upload asset
           curl -sS -X POST \
             -H "Authorization: token ${GITEA_TOKEN}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"${APK}" \
-            "${GITEA_URL}/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/releases/${TAG}/assets?name=${APK}"
+            "${GITEA_URL}/api/v1/repos/${REPO_OWNER}/${REPO_NAME}/releases/${RELEASE_ID}/assets?name=${APK}"

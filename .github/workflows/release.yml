@@ -5,6 +5,10 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.0)"
+        required: true
 
 jobs:
   build-release:
@@ -73,5 +77,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: TimeCalc_*.apk
+          tag_name: ${{ github.ref_name || inputs.tag }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
